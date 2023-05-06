@@ -105,6 +105,16 @@ public:
         glUniform4f(glGetUniformLocation(ID, name.c_str()), x, y, z, w);
     }
     // ------------------------------------------------------------------------
+    void setVec3f(const std::string &name, glm::vec3 v) const
+    {
+        glUniform3f(glGetUniformLocation(ID, name.c_str()), v.x, v.y, v.z);
+    }
+    // ------------------------------------------------------------------------
+    void setVec3(const std::string &name, float x, float y, float z) const
+    {
+        glUniform3f(glGetUniformLocation(ID, name.c_str()), x, y, z);
+    }
+    // ------------------------------------------------------------------------
     void setVec2f(const std::string &name, float x, float y) const
     {
         glUniform2f(glGetUniformLocation(ID, name.c_str()), x, y);
@@ -115,11 +125,29 @@ public:
         glUniformMatrix4fv(transformLoc, 1, GL_FALSE, glm::value_ptr(mat));
     }
     // ------------------------------------------------------------------------
+    void setMat3(const std::string &name, glm::mat3 mat) const {
+        int transformLoc = glGetUniformLocation(ID, name.c_str());
+        glUniformMatrix3fv(transformLoc, 1, GL_FALSE, glm::value_ptr(mat));
+    }
+    // ------------------------------------------------------------------------
     void setMVP(glm::mat4 model, glm::mat4 view, glm::mat4 projection) const {
         this->setMat4("model", model);
         this->setMat4("view", view);
         this->setMat4("projection", projection);
     }
+    // ------------------------------------------------------------------------
+    void setNormalModel(glm::mat4 model) const {
+        glm::mat3 submat;
+        for (int i = 0; i < 3; i++) {
+            for (int j = 0; j < 3; j++) {
+                submat[i][j] = model[i][j];
+            }
+        }
+
+        glm::mat3 normModel = glm::transpose(glm::inverse(submat));
+        this->setMat3("normModel", normModel);
+    }
+
 
 private:
     // utility function for checking shader compilation/linking errors.
