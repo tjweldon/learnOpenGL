@@ -7,6 +7,9 @@
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 
 #include <string>
@@ -100,6 +103,16 @@ public:
     void setVec4f(const std::string &name, float x, float y, float z, float w) const
     {
         glUniform4f(glGetUniformLocation(ID, name.c_str()), x, y, z, w);
+    }
+    // ------------------------------------------------------------------------
+    void setVec2f(const std::string &name, float x, float y) const
+    {
+        glUniform2f(glGetUniformLocation(ID, name.c_str()), x, y);
+    }
+    // ------------------------------------------------------------------------
+    void setMat4(const std::string &name, glm::mat4 mat) {
+        int transformLoc = glGetUniformLocation(ID, name.c_str());
+        glUniformMatrix4fv(transformLoc, 1, GL_FALSE, glm::value_ptr(mat));
     }
 
 private:

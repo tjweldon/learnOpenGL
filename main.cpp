@@ -7,11 +7,21 @@
 #include <cmath>
 #include "shader.h"
 #include "stb_image.h"
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
-void framebuffer_size_callback(GLFWwindow* window, int width, int height);
-void processInput(GLFWwindow *window, float *mix);
+void framebuffer_size_callback(GLFWwindow *window, int width, int height);
+
+void processInput(GLFWwindow *window, glm::vec2 *xy);
 
 unsigned int loadTexture(unsigned int sourceFormat, const char *filename);
+
+int glProgram();
+
+int scratchProgram();
+
+glm::mat4 getTransform(float degrees, glm::vec2 mov);
 
 // settings
 const unsigned int SCR_WIDTH = 800;
@@ -20,11 +30,29 @@ const unsigned int SCR_HEIGHT = 600;
 const std::string vertexShaderPath = "/home/tjweldon/code/cpp/learnOpenGL/vertex.glsl";
 const std::string fragmentShaderPath = "/home/tjweldon/code/cpp/learnOpenGL/fragment.glsl";
 
-const float mixIncr = 0.005f;
+const float arrowKeyIncr = 0.01f;
 
-int main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]) {
+    if (argc == 1) {
+        return glProgram();
+    } else if (argc == 2) {
+        return scratchProgram();
+    }
 
+    return 0;
+}
+
+int scratchProgram() {
+    glm::vec4 vec(1.0f, 0.0f, 0.0f, 1.0f);
+    glm::mat4 trans = glm::mat4(1.0f);
+    trans = glm::rotate(trans, glm::radians(90.0f), glm::vec3(0.0, 0.0, 1.0));
+    trans = glm::scale(trans, glm::vec3(0.5, 0.5, 0.5));
+    vec = trans * vec;
+    std::cout << "(" << vec.x << ", " << vec.y << ", " << vec.z << ")" << std::endl;
+    return 0;
+}
+
+int glProgram() {
     // glfw: initialize and configure
     // ------------------------------
     glfwInit();
@@ -38,9 +66,8 @@ int main(int argc, char *argv[])
 
     // glfw window creation
     // --------------------
-    GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "LearnOpenGL", nullptr, nullptr);
-    if (window == nullptr)
-    {
+    GLFWwindow *window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "LearnOpenGL", nullptr, nullptr);
+    if (window == nullptr) {
         std::cout << "Failed to create GLFW window" << std::endl;
         glfwTerminate();
         return -1;
@@ -50,8 +77,7 @@ int main(int argc, char *argv[])
 
     // glad: load all OpenGL function pointers
     // ---------------------------------------
-    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
-    {
+    if (!gladLoadGLLoader((GLADloadproc) glfwGetProcAddress)) {
         std::cout << "Failed to initialize GLAD" << std::endl;
         return -1;
     }
@@ -68,11 +94,11 @@ int main(int argc, char *argv[])
     // ------------------------------------------------------------------
 
     float vertices[] = {
-            // positions                       // colors                       // texture coords
-            0.5f,  0.5f, 0.0f,   1.0f, 0.0f, 0.0f,   1.0f, 1.0f,   // top right
-            0.5f, -0.5f, 0.0f,   0.0f, 1.0f, 0.0f,   1.0f, 0.0f,   // bottom right
-            -0.5f, -0.5f, 0.0f,   0.0f, 0.0f, 1.0f,   0.0f, 0.0f,   // bottom left
-            -0.5f,  0.5f, 0.0f,   1.0f, 1.0f, 0.0f,   0.0f, 1.0f    // top left
+            // positions                    // texture coords
+            0.5f, 0.5f, 0.0f,           1.0f, 1.0f,   // top right
+            0.5f, -0.5f, 0.0f,          1.0f, 0.0f,   // bottom right
+            -0.5f, -0.5f, 0.0f,     0.0f, 0.0f,   // bottom left
+            -0.5f, 0.5f, 0.0f,      0.0f, 1.0f    // top left
     };
 
     unsigned int indices[] = {
@@ -91,22 +117,23 @@ int main(int argc, char *argv[])
     // bind the Vertex Array Object first, then bind and set vertex buffer(s), and then configure vertex attributes(s).
     glBindVertexArray(VAO);
 
+    // bind array buffer
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
+    // bind element buffer
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
 
     // position attribute
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *) 0);
     glEnableVertexAttribArray(0);
-    // color attribute
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3* sizeof(float)));
-    glEnableVertexAttribArray(1);
-    // texture coord attribute
-    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6* sizeof(float)));
-    glEnableVertexAttribArray(2);
 
+    // texCoords attribute
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5* sizeof(float), (void *) (3 * sizeof(float)));
+    glEnableVertexAttribArray(1);
+
+    // unbind element and array buffers after setting data and attributes
     // note that this is allowed, the call to glVertexAttribPointer registered VBO as the vertex attribute's bound vertex buffer object so afterwards we can safely unbind
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
@@ -124,16 +151,16 @@ int main(int argc, char *argv[])
     ourShader.setInt("texture1", 0);
     ourShader.setInt("texture2", 1);
 
-    float mix = 0.5f;
-    ourShader.setFloat("mixf", mix);
+    glm::vec2 xy = {0.0f , 0.0f};
+    ourShader.setVec2f("xy", xy.x, xy.y);
+    ourShader.setMat4("transform", getTransform(0, glm::vec2()));
 
     // render loop
     // -----------
-    while (!glfwWindowShouldClose(window))
-    {
+    while (!glfwWindowShouldClose(window)) {
         // input
         // -----
-        processInput(window, &mix);
+        processInput(window, &xy);
 
         // render
         // ------
@@ -142,7 +169,7 @@ int main(int argc, char *argv[])
 
         // draw our first triangle
         ourShader.use();
-        ourShader.setFloat("mixf", mix);
+        ourShader.setMat4("transform", getTransform(float(glfwGetTime() * 20.0), xy));
 
         // bind textures for draw
         glActiveTexture(GL_TEXTURE0);
@@ -178,6 +205,14 @@ int main(int argc, char *argv[])
     return 0;
 }
 
+glm::mat4 getTransform(float degrees, glm::vec2 mov) {
+    glm::mat4 trans = glm::mat4(1.0f);
+    trans = glm::translate(trans, glm::vec3(mov.x, mov.y, 0.0f));
+    trans = glm::rotate(trans, glm::radians(degrees), glm::vec3(0.0, 0.0, 1.0));
+    trans = glm::scale(trans, glm::vec3(0.5, 0.5, 0.5));
+    return trans;
+}
+
 unsigned int loadTexture(unsigned int sourceFormat, const char *filename) {
     unsigned int tex;
     glGenTextures(1, &tex);
@@ -191,13 +226,10 @@ unsigned int loadTexture(unsigned int sourceFormat, const char *filename) {
     stbi_set_flip_vertically_on_load(true);
     int width, height, nrChannels;
     unsigned char *data = stbi_load(filename, &width, &height, &nrChannels, 0);
-    if (data)
-    {
+    if (data) {
         glTexImage2D(GL_TEXTURE_2D, 0, sourceFormat, width, height, 0, sourceFormat, GL_UNSIGNED_BYTE, data);
         glGenerateMipmap(GL_TEXTURE_2D);
-    }
-    else
-    {
+    } else {
         std::cout << "Failed to load texture" << std::endl;
     }
     stbi_image_free(data);
@@ -206,22 +238,28 @@ unsigned int loadTexture(unsigned int sourceFormat, const char *filename) {
 
 // process all input: query GLFW whether relevant keys are pressed/released this frame and react accordingly
 // ---------------------------------------------------------------------------------------------------------
-void processInput(GLFWwindow *window, float *mix) {
+void processInput(GLFWwindow *window, glm::vec2 *xy) {
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
 
     if (glfwGetKey(window, GLFW_KEY_UP))
-        *mix += mixIncr;
+        xy->y = xy->y + arrowKeyIncr;
 
     if (glfwGetKey(window, GLFW_KEY_DOWN))
-        *mix -= mixIncr;
+        xy->y = xy->y - arrowKeyIncr;
+
+    if (glfwGetKey(window, GLFW_KEY_LEFT))
+        xy->x = xy->x - arrowKeyIncr;
+
+    if (glfwGetKey(window, GLFW_KEY_RIGHT))
+        xy->x = xy->x + arrowKeyIncr;
+
 }
 
 
 // glfw: whenever the window size changed (by OS or user resize) this callback function executes
 // ---------------------------------------------------------------------------------------------
-void framebuffer_size_callback(GLFWwindow* window, int width, int height)
-{
+void framebuffer_size_callback(GLFWwindow *window, int width, int height) {
     // make sure the viewport matches the new window dimensions; note that width and
     // height will be significantly larger than specified on retina displays.
     glViewport(0, 0, width, height);
