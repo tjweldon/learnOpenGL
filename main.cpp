@@ -4,7 +4,6 @@
 #include <GLFW/glfw3.h>
 #include <iostream>
 #include <streambuf>
-#include <cmath>
 #include "shader.h"
 #include "stb_image.h"
 #include <glm/glm.hpp>
@@ -12,8 +11,7 @@
 #include <glm/gtc/type_ptr.hpp>
 
 void framebuffer_size_callback(GLFWwindow *window, int width, int height);
-
-void processInput(GLFWwindow *window, glm::vec2 *xy);
+void processInput(GLFWwindow *window, glm::vec3 *xyz);
 
 unsigned int loadTexture(unsigned int sourceFormat, const char *filename);
 
@@ -22,6 +20,9 @@ int glProgram();
 int scratchProgram();
 
 glm::mat4 getTransform(float degrees, glm::vec2 mov);
+glm::mat4 getModelMat(glm::vec2 xy);
+glm::mat4 getViewMat(glm::vec3 xyz);
+glm::mat4 getProjMat();
 
 // settings
 const unsigned int SCR_WIDTH = 800;
@@ -30,7 +31,7 @@ const unsigned int SCR_HEIGHT = 600;
 const std::string vertexShaderPath = "/home/tjweldon/code/cpp/learnOpenGL/vertex.glsl";
 const std::string fragmentShaderPath = "/home/tjweldon/code/cpp/learnOpenGL/fragment.glsl";
 
-const float arrowKeyIncr = 0.01f;
+const float arrowKeyIncr = 0.05f;
 
 int main(int argc, char *argv[]) {
     if (argc == 1) {
@@ -93,24 +94,55 @@ int glProgram() {
     // set up vertex data (and buffer(s)) and configure vertex attributes
     // ------------------------------------------------------------------
 
-    float vertices[] = {
-            // positions                    // texture coords
-            0.5f, 0.5f, 0.0f,           1.0f, 1.0f,   // top right
-            0.5f, -0.5f, 0.0f,          1.0f, 0.0f,   // bottom right
-            -0.5f, -0.5f, 0.0f,     0.0f, 0.0f,   // bottom left
-            -0.5f, 0.5f, 0.0f,      0.0f, 1.0f    // top left
-    };
 
-    unsigned int indices[] = {
-            0, 1, 3,
-            1, 2, 3
+    float vertices[] = {
+            -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
+            0.5f, -0.5f, -0.5f,  1.0f, 0.0f,
+            0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+            0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+            -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
+            -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
+
+            -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+            0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
+            0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
+            0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
+            -0.5f,  0.5f,  0.5f,  0.0f, 1.0f,
+            -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+
+            -0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+            -0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+            -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+            -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+            -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+            -0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+
+            0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+            0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+            0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+            0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+            0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+            0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+
+            -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+            0.5f, -0.5f, -0.5f,  1.0f, 1.0f,
+            0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
+            0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
+            -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+            -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+
+            -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
+            0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+            0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+            0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+            -0.5f,  0.5f,  0.5f,  0.0f, 0.0f,
+            -0.5f,  0.5f, -0.5f,  0.0f, 1.0f
     };
 
     // Assign buffer ids to the buffers
-    unsigned int VBO, VAO, EBO;
+    unsigned int VBO, VAO;
     glGenVertexArrays(1, &VAO);
     glGenBuffers(1, &VBO);
-    glGenBuffers(1, &EBO);
 
     // == When we bind buffers after binding the vertex array, we are assigning attributes of the vertex array ==
     //
@@ -120,10 +152,6 @@ int glProgram() {
     // bind array buffer
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
-    // bind element buffer
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
 
     // position attribute
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *) 0);
@@ -136,7 +164,6 @@ int glProgram() {
     // unbind element and array buffers after setting data and attributes
     // note that this is allowed, the call to glVertexAttribPointer registered VBO as the vertex attribute's bound vertex buffer object so afterwards we can safely unbind
     glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
     // You can unbind the VAO afterwards so other VAO calls won't accidentally modify this VAO, but this rarely happens. Modifying other
     // VAOs requires a call to glBindVertexArray anyways so we generally don't unbind VAOs (nor VBOs) when it's not directly necessary.
@@ -146,30 +173,45 @@ int glProgram() {
     // uncomment this call to draw in wireframe polygons.
     //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
+
+    glm::vec3 cubePositions[] = {
+            glm::vec3( 0.0f,  0.0f,  0.0f),
+            glm::vec3( 2.0f,  5.0f, -15.0f),
+            glm::vec3(-1.5f, -2.2f, -2.5f),
+            glm::vec3(-3.8f, -2.0f, -12.3f),
+            glm::vec3( 2.4f, -0.4f, -3.5f),
+            glm::vec3(-1.7f,  3.0f, -7.5f),
+            glm::vec3( 1.3f, -2.0f, -2.5f),
+            glm::vec3( 1.5f,  2.0f, -2.5f),
+            glm::vec3( 1.5f,  0.2f, -1.5f),
+            glm::vec3(-1.3f,  1.0f, -1.5f)
+    };
+
     // Set the texture uniforms
     ourShader.use();
     ourShader.setInt("texture1", 0);
     ourShader.setInt("texture2", 1);
 
-    glm::vec2 xy = {0.0f , 0.0f};
-    ourShader.setVec2f("xy", xy.x, xy.y);
+    glm::vec3 xyz = {0.0f , 0.0f, 0.0f};
     ourShader.setMat4("transform", getTransform(0, glm::vec2()));
+
+    glm::mat4 model, view, projection;
+    glEnable(GL_DEPTH_TEST);
 
     // render loop
     // -----------
     while (!glfwWindowShouldClose(window)) {
         // input
         // -----
-        processInput(window, &xy);
+        processInput(window, &xyz);
+
 
         // render
         // ------
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        // draw our first triangle
-        ourShader.use();
-        ourShader.setMat4("transform", getTransform(float(glfwGetTime() * 20.0), xy));
+
 
         // bind textures for draw
         glActiveTexture(GL_TEXTURE0);
@@ -181,10 +223,18 @@ int glProgram() {
         glBindVertexArray(VAO);
 
         // bind elements
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+        glBindBuffer(GL_ARRAY_BUFFER, VAO);
 
         // draw
-        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+        for (auto cubePosition : cubePositions) {
+            model = getModelMat(cubePosition);
+            view = getViewMat(xyz);
+            projection = getProjMat();
+            ourShader.setFloat("time", (float)glfwGetTime());
+            ourShader.setMVP(model, view, projection);
+            glDrawArrays(GL_TRIANGLES, 0, 36);
+        }
+
         // glBindVertexArray(0); // no need to unbind it every time
 
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
@@ -197,7 +247,6 @@ int glProgram() {
     // ------------------------------------------------------------------------
     glDeleteVertexArrays(1, &VAO);
     glDeleteBuffers(1, &VBO);
-    glDeleteBuffers(1, &EBO);
 
     // glfw: terminate, clearing all previously allocated GLFW resources.
     // ------------------------------------------------------------------
@@ -211,6 +260,25 @@ glm::mat4 getTransform(float degrees, glm::vec2 mov) {
     trans = glm::rotate(trans, glm::radians(degrees), glm::vec3(0.0, 0.0, 1.0));
     trans = glm::scale(trans, glm::vec3(0.5, 0.5, 0.5));
     return trans;
+}
+
+glm::mat4 getModelMat(glm::vec2 xy) {
+    glm::mat4 model = glm::mat4(1.0f);
+    model = glm::translate(model, glm::vec3(xy.x, xy.y, 0.0f));
+    model = glm::rotate(model, (float)glfwGetTime() * glm::radians(50.0f), glm::vec3(0.5f, 1.0f, 0.0f));
+    return model;
+}
+
+glm::mat4 getViewMat(glm::vec3 xyz) {
+    glm::mat4 view = glm::mat4(1.0f);
+    view = glm::translate(view, glm::vec3(0.0f, 0.0f, -3.0f) + xyz);
+    return view;
+}
+
+glm::mat4 getProjMat() {
+    glm::mat4 proj;
+    proj = glm::perspective(glm::radians(45.0f), float(SCR_WIDTH)/float(SCR_HEIGHT), 0.1f, 100.0f);
+    return proj;
 }
 
 unsigned int loadTexture(unsigned int sourceFormat, const char *filename) {
@@ -238,22 +306,27 @@ unsigned int loadTexture(unsigned int sourceFormat, const char *filename) {
 
 // process all input: query GLFW whether relevant keys are pressed/released this frame and react accordingly
 // ---------------------------------------------------------------------------------------------------------
-void processInput(GLFWwindow *window, glm::vec2 *xy) {
+void processInput(GLFWwindow *window, glm::vec3 *xyz) {
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
 
-    if (glfwGetKey(window, GLFW_KEY_UP))
-        xy->y = xy->y + arrowKeyIncr;
+    if (glfwGetKey(window, GLFW_KEY_W))
+        xyz->y = xyz->y + arrowKeyIncr;
 
-    if (glfwGetKey(window, GLFW_KEY_DOWN))
-        xy->y = xy->y - arrowKeyIncr;
+    if (glfwGetKey(window, GLFW_KEY_S))
+        xyz->y = xyz->y - arrowKeyIncr;
 
-    if (glfwGetKey(window, GLFW_KEY_LEFT))
-        xy->x = xy->x - arrowKeyIncr;
+    if (glfwGetKey(window, GLFW_KEY_A))
+        xyz->x = xyz->x - arrowKeyIncr;
 
-    if (glfwGetKey(window, GLFW_KEY_RIGHT))
-        xy->x = xy->x + arrowKeyIncr;
+    if (glfwGetKey(window, GLFW_KEY_D))
+        xyz->x = xyz->x + arrowKeyIncr;
 
+    if (glfwGetKey(window, GLFW_KEY_Q))
+        xyz->z = xyz->z + arrowKeyIncr;
+
+    if (glfwGetKey(window, GLFW_KEY_E))
+        xyz->z = xyz->z - arrowKeyIncr;
 }
 
 

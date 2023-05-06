@@ -110,9 +110,15 @@ public:
         glUniform2f(glGetUniformLocation(ID, name.c_str()), x, y);
     }
     // ------------------------------------------------------------------------
-    void setMat4(const std::string &name, glm::mat4 mat) {
+    void setMat4(const std::string &name, glm::mat4 mat) const {
         int transformLoc = glGetUniformLocation(ID, name.c_str());
         glUniformMatrix4fv(transformLoc, 1, GL_FALSE, glm::value_ptr(mat));
+    }
+    // ------------------------------------------------------------------------
+    void setMVP(glm::mat4 model, glm::mat4 view, glm::mat4 projection) const {
+        this->setMat4("model", model);
+        this->setMat4("view", view);
+        this->setMat4("projection", projection);
     }
 
 private:
