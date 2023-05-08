@@ -1,16 +1,10 @@
-//
-// Created by tjweldon on 04/05/23.
-//
 
-#ifndef LEARNOPENGL_SHADER_H
-#define LEARNOPENGL_SHADER_H
+
+#ifndef SHADER_H
+#define SHADER_H
 
 #include <glad/glad.h>
-#include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtc/type_ptr.hpp>
-
 
 #include <string>
 #include <fstream>
@@ -23,7 +17,7 @@ public:
     unsigned int ID;
     // constructor generates the shader on the fly
     // ------------------------------------------------------------------------
-    Shader(std::basic_string<char> vertexPath, std::basic_string<char> fragmentPath)
+    Shader(const char* vertexPath, const char* fragmentPath)
     {
         // 1. retrieve the vertex/fragment source code from filePath
         std::string vertexCode;
@@ -46,7 +40,7 @@ public:
             vShaderFile.close();
             fShaderFile.close();
             // convert stream into string
-            vertexCode   = vShaderStream.str();
+            vertexCode = vShaderStream.str();
             fragmentCode = fShaderStream.str();
         }
         catch (std::ifstream::failure& e)
@@ -54,7 +48,7 @@ public:
             std::cout << "ERROR::SHADER::FILE_NOT_SUCCESSFULLY_READ: " << e.what() << std::endl;
         }
         const char* vShaderCode = vertexCode.c_str();
-        const char* fShaderCode = fragmentCode.c_str();
+        const char * fShaderCode = fragmentCode.c_str();
         // 2. compile shaders
         unsigned int vertex, fragment;
         // vertex shader
@@ -76,10 +70,11 @@ public:
         // delete the shaders as they're linked into our program now and no longer necessary
         glDeleteShader(vertex);
         glDeleteShader(fragment);
+
     }
     // activate the shader
     // ------------------------------------------------------------------------
-    void use()
+    void use() const
     {
         glUseProgram(ID);
     }
@@ -100,62 +95,55 @@ public:
         glUniform1f(glGetUniformLocation(ID, name.c_str()), value);
     }
     // ------------------------------------------------------------------------
-    void setVec4f(const std::string &name, float x, float y, float z, float w) const
+    void setVec2(const std::string &name, const glm::vec2 &value) const
     {
-        glUniform4f(glGetUniformLocation(ID, name.c_str()), x, y, z, w);
+        glUniform2fv(glGetUniformLocation(ID, name.c_str()), 1, &value[0]);
+    }
+    void setVec2(const std::string &name, float x, float y) const
+    {
+        glUniform2f(glGetUniformLocation(ID, name.c_str()), x, y);
     }
     // ------------------------------------------------------------------------
-    void setVec3f(const std::string &name, glm::vec3 v) const
+    void setVec3(const std::string &name, const glm::vec3 &value) const
     {
-        glUniform3f(glGetUniformLocation(ID, name.c_str()), v.x, v.y, v.z);
+        glUniform3fv(glGetUniformLocation(ID, name.c_str()), 1, &value[0]);
     }
-    // ------------------------------------------------------------------------
     void setVec3(const std::string &name, float x, float y, float z) const
     {
         glUniform3f(glGetUniformLocation(ID, name.c_str()), x, y, z);
     }
     // ------------------------------------------------------------------------
-    void setVec2f(const std::string &name, float x, float y) const
+    void setVec4(const std::string &name, const glm::vec4 &value) const
     {
-        glUniform2f(glGetUniformLocation(ID, name.c_str()), x, y);
+        glUniform4fv(glGetUniformLocation(ID, name.c_str()), 1, &value[0]);
+    }
+    void setVec4(const std::string &name, float x, float y, float z, float w) const
+    {
+        glUniform4f(glGetUniformLocation(ID, name.c_str()), x, y, z, w);
     }
     // ------------------------------------------------------------------------
-    void setMat4(const std::string &name, glm::mat4 mat) const {
-        int transformLoc = glGetUniformLocation(ID, name.c_str());
-        glUniformMatrix4fv(transformLoc, 1, GL_FALSE, glm::value_ptr(mat));
+    void setMat2(const std::string &name, const glm::mat2 &mat) const
+    {
+        glUniformMatrix2fv(glGetUniformLocation(ID, name.c_str()), 1, GL_FALSE, &mat[0][0]);
     }
     // ------------------------------------------------------------------------
-    void setMat3(const std::string &name, glm::mat3 mat) const {
-        int transformLoc = glGetUniformLocation(ID, name.c_str());
-        glUniformMatrix3fv(transformLoc, 1, GL_FALSE, glm::value_ptr(mat));
+    void setMat3(const std::string &name, const glm::mat3 &mat) const
+    {
+        glUniformMatrix3fv(glGetUniformLocation(ID, name.c_str()), 1, GL_FALSE, &mat[0][0]);
     }
     // ------------------------------------------------------------------------
-    void setMVP(glm::mat4 model, glm::mat4 view, glm::mat4 projection) const {
-        this->setMat4("model", model);
-        this->setMat4("view", view);
-        this->setMat4("projection", projection);
+    void setMat4(const std::string &name, const glm::mat4 &mat) const
+    {
+        glUniformMatrix4fv(glGetUniformLocation(ID, name.c_str()), 1, GL_FALSE, &mat[0][0]);
     }
-    // ------------------------------------------------------------------------
-    void setNormalModel(glm::mat4 model) const {
-        glm::mat3 submat;
-        for (int i = 0; i < 3; i++) {
-            for (int j = 0; j < 3; j++) {
-                submat[i][j] = model[i][j];
-            }
-        }
-
-        glm::mat3 normModel = glm::transpose(glm::inverse(submat));
-        this->setMat3("normModel", normModel);
-    }
-
 
 private:
     // utility function for checking shader compilation/linking errors.
     // ------------------------------------------------------------------------
-    void checkCompileErrors(unsigned int shader, std::string type)
+    void checkCompileErrors(GLuint shader, std::string type)
     {
-        int success;
-        char infoLog[1024];
+        GLint success;
+        GLchar infoLog[1024];
         if (type != "PROGRAM")
         {
             glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
@@ -176,6 +164,5 @@ private:
         }
     }
 };
+#endif
 
-
-#endif //LEARNOPENGL_SHADER_H
